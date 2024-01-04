@@ -4,6 +4,7 @@ task_count = 0
 
 # simple function to print tasks with task number
 def print_task(task: str) -> None:
+    global task_count
     task_count += 1
     print(f'  {task_count}) {task}')
 
