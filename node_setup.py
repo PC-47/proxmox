@@ -1,5 +1,7 @@
 #!/bin/python3
 
+import subprocess
+
 task_count = 0
 
 # simple function to print tasks with task number
@@ -22,7 +24,7 @@ def set_repos() -> None:
             f.write('deb http://download.proxmox.com/debian/pve bookworm pve-no-subscription\n')
     except Exception as e:
         print(f'ERROR: {e} while changing main sources list')
-    
+
     print_task('disabling pve-enterprise repo')
     try:
         with open('/etc/apt/sources.list.d/pve-enterprise.list', 'w') as f:
@@ -40,6 +42,45 @@ def set_repos() -> None:
         print(f'ERROR: {e} while changing main sources list')
 
 
+# function to update the host
+def update_host() -> None:
+    print_task('updating host with "apt update"')
+    command = 'apt update'
+    try:
+        process = subprocess.Popen(
+        command,
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True
+        )
+        stdout, stderr = process.communicate()
+        exit_code = process.returncode
+    except Exception as e:
+        print(f'ERROR running {command}, {e}')
+
+
+# function to upgrade the host
+def upgrade_host() -> None:
+    print_task('upgrading host with "apt dist-upgrade -y"')
+    command = 'apt dist-upgrade -y'
+    try:
+        process = subprocess.Popen(
+        command,
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True
+        )
+        stdout, stderr = process.communicate()
+        exit_code = process.returncode
+    except Exception as e:
+        print(f'ERROR running {command}, {e}')
+
+
 if __name__ == '__main__':
-    print('Starting PVE Node Setup Script')
+    print('\nStarting PVE Node Setup Script')
     set_repos()
+    update_host()
+    upgrade_host()
+    print('Finished PVE Node Setup Script\n')
