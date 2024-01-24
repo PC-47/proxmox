@@ -1,0 +1,85 @@
+---
+- name: PVE Node Setup
+  hosts: pve_nodes
+  remote_user: root
+  gather_facts: true
+
+  vars:
+    management_interface: ens18
+    ceph_interface: ens19
+    ceph_ip: 10.2.0.101
+
+  tasks:
+
+    - name: Download node firewall template
+      command: wget -P /etc/pve/nodes/{{ ansible_hostname }}/ https://raw.githubusercontent.com/PC-47/proxmox/main/host.fw
+      register: wget_output_1
+
+    # - name: Debug wget
+      # debug:
+        # var: wget_output_1
+
+    - name: Download cluster firewall template
+      command: wget -P /etc/pve/firewall/ https://raw.githubusercontent.com/PC-47/proxmox/main/cluster.fw
+      register: wget_output_2
+
+    # - name: Debug wget
+      # debug:
+        # var: wget_output_2
+
+    - name: Set no-subscription repo
+      copy:
+        src: ./files/sources.list
+        dest: /etc/apt/sources.list
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Disable pve-enterprise repo
+      copy:
+        src: ./files/pve-enterprise.list
+        dest: /etc/apt/sources.list.d/pve-enterprise.list
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Disable ceph-enterprise repo
+      copy:
+        src: ./files/ceph.list
+        dest: /etc/apt/sources.list.d/ceph.list
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Update host
+      apt:
+        update_cache: true
+
+    - name: Upgrade host
+      apt:
+        upgrade: dist
+
+    - name: Install ceph (reef version)
+      shell: echo "y" | pveceph install --repository no-subscription --version reef
+
+    - name: Configure vmbr1
+      lineinfile:
+        path: /etc/network/interfaces
+        insertafter: '^\\s+bridge-fd 0'
+        line: "{{ item }}"
+      loop:
+        - "auto vmbr1"
+        - "iface vmbr1 inet static"
+        - "    address {{ ceph_ip }}/24"
+        - "    bridge-ports {{ ceph_interface }}"
+        - "    bridge-stp off"
+        - "    bridge-fd 0"
+        - "#ceph"
+      notify: Restart networking
+
+  handlers:
+    - name: Restart networking
+      systemd:
+        name: networking
+        state: restarted
+        enabled: true
